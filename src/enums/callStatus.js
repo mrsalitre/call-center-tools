@@ -5,5 +5,6 @@ export const CallStatus = Object.freeze({
   ACTIVE: 'active',
   ON_HOLD: 'hold',
   TRANSFERRING: 'transferring',
+  TRANSFERRED: 'transferred',
   ENDED: 'ended',
 })
