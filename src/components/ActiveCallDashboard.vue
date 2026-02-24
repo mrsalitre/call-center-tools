@@ -1,10 +1,19 @@
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { CallStatus } from '@/enums/callStatus'
 
-const customerName = ref('') // This should come from the parent or maybe the route or maybe an state using pinia
+defineProps<{
+  customerName: string
+}>()
+
 const callStatus = ref(CallStatus.IDLE)
-const callDuration = ref(0) // maybe we can create a computed property to format the duration
+const callDuration = ref(0)
+
+const formattedDuration = computed(() => {
+  const minutes = Math.floor(callDuration.value / 60)
+  const seconds = callDuration.value % 60
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+})
 
 let durationInterval: ReturnType<typeof setInterval> | null = null
 
@@ -81,7 +90,7 @@ onUnmounted(() => {
     <h2>Current Active Call</h2>
     <p>Customer Name: {{ customerName }}</p>
     <p>Call Status: {{ callStatus }}</p>
-    <p>Call Duration: {{ callDuration }}</p>
+    <p>Call Duration: {{ formattedDuration }}</p>
     <button v-on:click="startCall">Start Call</button>
     <button v-on:click="endCall">End Call</button>
     <button v-on:click="transferCall">Transfer Call</button>

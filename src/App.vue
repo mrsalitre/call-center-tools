@@ -4,7 +4,7 @@ import ActiveCallDashboard from '@/components/ActiveCallDashboard.vue' // Maybe 
 
 <template>
   <h1>Call Center Tools</h1>
-  <ActiveCallDashboard />
+  <ActiveCallDashboard customerName="Jhon Doe" />
 </template>
 
 <style>
