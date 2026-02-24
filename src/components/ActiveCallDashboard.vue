@@ -9,13 +9,14 @@ defineProps<{
 const callStatus = ref(CallStatus.IDLE)
 const callDuration = ref(0)
 
+let durationInterval: ReturnType<typeof setInterval> | null = null
+const canStartCall = [CallStatus.IDLE, CallStatus.ENDED, CallStatus.TRANSFERRED]
+
 const formattedDuration = computed(() => {
   const minutes = Math.floor(callDuration.value / 60)
   const seconds = callDuration.value % 60
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 })
-
-let durationInterval: ReturnType<typeof setInterval> | null = null
 
 function clearDurationInterval() {
   if (durationInterval) {
@@ -25,8 +26,11 @@ function clearDurationInterval() {
 }
 
 function startCall() {
-  callStatus.value = CallStatus.RINGING
+  if (!canStartCall.includes(callStatus.value)) {
+    return
+  }
 
+  callStatus.value = CallStatus.RINGING
   setTimeout(() => {
     callStatus.value = CallStatus.ACTIVE
     callDuration.value = 0
