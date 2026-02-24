@@ -5,7 +5,6 @@ import { CallStatus } from '@/enums/callStatus'
 const customerName = ref('') // This should come from the parent or maybe the route or maybe an state using pinia
 const callStatus = ref(CallStatus.IDLE)
 const callDuration = ref(0) // maybe we can create a computed property to format the duration
-const isCallTransfered = ref(false)
 
 let durationInterval: ReturnType<typeof setInterval> | null = null
 
@@ -26,13 +25,17 @@ function startCall() {
 }
 
 function endCall() {
+  if (callStatus.value !== CallStatus.ACTIVE) {
+    return
+  }
   callStatus.value = CallStatus.ENDED
 }
 
 function transferCall() {
+  if (callStatus.value !== CallStatus.ACTIVE) {
+    return
+  }
   callStatus.value = CallStatus.TRANSFERRING
-  // We should need to wait for the call to be transfered
-  isCallTransfered.value = true
   // This is for mock the transfer process
   setTimeout(() => {
     callStatus.value = CallStatus.TRANSFERRED
@@ -48,6 +51,9 @@ function handleHoldOrResumeCall() {
 }
 
 function holdCall() {
+  if (callStatus.value !== CallStatus.ACTIVE) {
+    return
+  }
   callStatus.value = CallStatus.ON_HOLD
 }
 
@@ -79,7 +85,9 @@ onUnmounted(() => {
     <button v-on:click="startCall">Start Call</button>
     <button v-on:click="endCall">End Call</button>
     <button v-on:click="transferCall">Transfer Call</button>
-    <button v-on:click="handleHoldOrResumeCall">Hold Call</button>
+    <button v-on:click="handleHoldOrResumeCall">
+      {{ callStatus === CallStatus.ON_HOLD ? 'Resume Call' : 'Hold Call' }}
+    </button>
   </div>
 </template>
 
