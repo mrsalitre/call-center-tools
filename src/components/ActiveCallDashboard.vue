@@ -31,6 +31,7 @@ function startCall() {
   }
 
   callStatus.value = CallStatus.RINGING
+  // only to simulate behavioural of a call center
   setTimeout(() => {
     callStatus.value = CallStatus.ACTIVE
     callDuration.value = 0
@@ -38,14 +39,14 @@ function startCall() {
 }
 
 function endCall() {
-  if (callStatus.value !== CallStatus.ACTIVE) {
+  if (callStatus.value !== CallStatus.ACTIVE && callStatus.value !== CallStatus.ON_HOLD) {
     return
   }
   callStatus.value = CallStatus.ENDED
 }
 
 function transferCall() {
-  if (callStatus.value !== CallStatus.ACTIVE) {
+  if (callStatus.value !== CallStatus.ACTIVE && callStatus.value !== CallStatus.ON_HOLD) {
     return
   }
   callStatus.value = CallStatus.TRANSFERRING
