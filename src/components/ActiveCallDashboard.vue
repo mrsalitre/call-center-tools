@@ -17,6 +17,18 @@ const formattedDuration = computed(() => {
   const seconds = callDuration.value % 60
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 })
+const isActive = computed(() => callStatus.value === CallStatus.ACTIVE)
+const isOnHold = computed(() => callStatus.value === CallStatus.ON_HOLD)
+const canStartCallAction = computed(() => canStartCall.includes(callStatus.value))
+const canEndCallAction = computed(() => isActive.value || isOnHold.value)
+const canTransferCallAction = computed(() => isActive.value || isOnHold.value)
+const canHoldOrResumeCallAction = computed(() => isActive.value || isOnHold.value)
+const holdOrResumeLabel = computed(() => {
+  if (!canHoldOrResumeCallAction.value) {
+    return 'Hold/Resume Unavailable'
+  }
+  return isOnHold.value ? 'Resume Call' : 'Hold Call'
+})
 
 function clearDurationInterval() {
   if (durationInterval) {
@@ -96,11 +108,11 @@ onUnmounted(() => {
     <p>Customer Name: {{ customerName }}</p>
     <p>Call Status: {{ callStatus }}</p>
     <p>Call Duration: {{ formattedDuration }}</p>
-    <button v-on:click="startCall">Start Call</button>
-    <button v-on:click="endCall">End Call</button>
-    <button v-on:click="transferCall">Transfer Call</button>
-    <button v-on:click="handleHoldOrResumeCall">
-      {{ callStatus === CallStatus.ON_HOLD ? 'Resume Call' : 'Hold Call' }}
+    <button v-on:click="startCall" :disabled="!canStartCallAction">Start Call</button>
+    <button v-on:click="endCall" :disabled="!canEndCallAction">End Call</button>
+    <button v-on:click="transferCall" :disabled="!canTransferCallAction">Transfer Call</button>
+    <button v-on:click="handleHoldOrResumeCall" :disabled="!canHoldOrResumeCallAction">
+      {{ holdOrResumeLabel }}
     </button>
   </div>
 </template>
