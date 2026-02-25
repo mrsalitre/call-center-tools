@@ -2,6 +2,10 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { QueueStatus } from '@/enums/queueStatus'
 import { QueuePriority } from '@/enums/queuePriority'
+import { CallStatus } from '@/enums/callStatus'
+import { useAttendedCallsStore } from './attendedCalls'
+
+export type CallStatusValue = (typeof CallStatus)[keyof typeof CallStatus]
 
 export type QueuePriorityValue = (typeof QueuePriority)[keyof typeof QueuePriority]
 export type QueueStatusValue = (typeof QueueStatus)[keyof typeof QueueStatus]
@@ -38,6 +42,9 @@ export const useQueueStore = defineStore('queue', () => {
 
   const activeCall = ref<QueueEntry | null>(null)
   const selectedPriorityFilter = ref<QueuePriorityValue | 'all'>('all')
+  const callStatus = ref<CallStatusValue>(CallStatus.IDLE)
+  const callDuration = ref(0)
+  let durationInterval: ReturnType<typeof setInterval> | null = null
 
   const queueSize = computed(() => queue.value.length)
 
@@ -75,6 +82,23 @@ export const useQueueStore = defineStore('queue', () => {
   })
 
   const hasActiveCall = computed(() => activeCall.value !== null)
+  const isActive = computed(() => callStatus.value === CallStatus.ACTIVE)
+  const isOnHold = computed(() => callStatus.value === CallStatus.ON_HOLD)
+  const canEndCallAction = computed(() => isActive.value || isOnHold.value)
+  const canTransferCallAction = computed(() => isActive.value || isOnHold.value)
+  const canHoldOrResumeCallAction = computed(() => isActive.value || isOnHold.value)
+  const holdOrResumeLabel = computed(() => {
+    if (!canHoldOrResumeCallAction.value) {
+      return 'Hold/Resume Unavailable'
+    }
+    return isOnHold.value ? 'Resume Call' : 'Hold Call'
+  })
+
+  const formattedDuration = computed(() => {
+    const minutes = Math.floor(callDuration.value / 60)
+    const seconds = callDuration.value % 60
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  })
 
   function calculatePriority(waitingSeconds: number): QueuePriorityValue {
     if (waitingSeconds >= 300) return QueuePriority.VIP
@@ -114,17 +138,80 @@ export const useQueueStore = defineStore('queue', () => {
       entry.status = QueueStatus.ASSIGNED
       entry.assignedAgent = 'Agent 1'
       activeCall.value = { ...entry }
+      callStatus.value = CallStatus.ACTIVE
+      callDuration.value = 0
+      startDurationTimer()
     }, 500)
   }
 
-  function endCall() {
+  function startDurationTimer() {
+    if (durationInterval) clearInterval(durationInterval)
+    durationInterval = setInterval(() => {
+      callDuration.value++
+    }, 1000)
+  }
+
+  function stopDurationTimer() {
+    if (durationInterval) {
+      clearInterval(durationInterval)
+      durationInterval = null
+    }
+  }
+
+  function holdCall() {
+    if (callStatus.value !== CallStatus.ACTIVE) return
+    callStatus.value = CallStatus.ON_HOLD
+    stopDurationTimer()
+  }
+
+  function resumeCall() {
+    if (callStatus.value !== CallStatus.ON_HOLD) return
+    callStatus.value = CallStatus.ACTIVE
+    startDurationTimer()
+  }
+
+  function handleHoldOrResume() {
+    if (callStatus.value === CallStatus.ON_HOLD) {
+      resumeCall()
+    } else {
+      holdCall()
+    }
+  }
+
+  function transferCall() {
+    if (callStatus.value !== CallStatus.ACTIVE && callStatus.value !== CallStatus.ON_HOLD) return
+
+    callStatus.value = CallStatus.TRANSFERRING
+    stopDurationTimer()
+
+    setTimeout(() => {
+      callStatus.value = CallStatus.TRANSFERRED
+      endCall()
+    }, 800)
+  }
+
+  function endCall(duration?: number) {
     if (!activeCall.value) return
+
+    stopDurationTimer()
+
+    const attendedCallsStore = useAttendedCallsStore()
+    attendedCallsStore.addAttendedCall({
+      id: activeCall.value.id,
+      callerName: activeCall.value.callerName,
+      phoneNumber: activeCall.value.phoneNumber,
+      duration: duration ?? callDuration.value,
+      priority: activeCall.value.priority,
+      agentName: activeCall.value.assignedAgent ?? 'Unknown',
+    })
 
     const entry = queue.value.find((e) => e.id === activeCall.value?.id)
     if (entry) {
       queue.value = queue.value.filter((e) => e.id !== activeCall.value?.id)
     }
     activeCall.value = null
+    callStatus.value = CallStatus.IDLE
+    callDuration.value = 0
   }
 
   function addToQueue(entry: Omit<QueueEntry, 'priority' | 'status'>) {
@@ -140,16 +227,29 @@ export const useQueueStore = defineStore('queue', () => {
     queue,
     activeCall,
     selectedPriorityFilter,
+    callStatus,
+    callDuration,
     queueSize,
     waitingCount,
     sortedQueue,
     hasActiveCall,
+    isActive,
+    isOnHold,
+    canEndCallAction,
+    canTransferCallAction,
+    canHoldOrResumeCallAction,
+    holdOrResumeLabel,
+    formattedDuration,
     updatePriorities,
     getWaitingTime,
     formatWaitingTime,
     setPriorityFilter,
     acceptCall,
     endCall,
+    holdCall,
+    resumeCall,
+    handleHoldOrResume,
+    transferCall,
     addToQueue,
   }
 })
