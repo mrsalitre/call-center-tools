@@ -11,7 +11,6 @@ const callStatus = ref<CallStatusValue>(CallStatus.IDLE)
 const callDuration = ref(0)
 
 let durationInterval: ReturnType<typeof setInterval> | null = null
-const canStartCall: CallStatusValue[] = [CallStatus.IDLE, CallStatus.ENDED, CallStatus.TRANSFERRED]
 
 const formattedDuration = computed(() => {
   const minutes = Math.floor(callDuration.value / 60)
@@ -20,9 +19,6 @@ const formattedDuration = computed(() => {
 })
 const isActive = computed(() => callStatus.value === CallStatus.ACTIVE)
 const isOnHold = computed(() => callStatus.value === CallStatus.ON_HOLD)
-const canStartCallAction = computed(
-  () => canStartCall.includes(callStatus.value) && queueStore.hasActiveCall,
-)
 const canEndCallAction = computed(() => isActive.value || isOnHold.value)
 const canTransferCallAction = computed(() => isActive.value || isOnHold.value)
 const canHoldOrResumeCallAction = computed(() => isActive.value || isOnHold.value)
@@ -41,18 +37,6 @@ function clearDurationInterval() {
     clearInterval(durationInterval)
     durationInterval = null
   }
-}
-
-function startCall() {
-  if (!canStartCall.includes(callStatus.value) || !queueStore.activeCall) {
-    return
-  }
-
-  callStatus.value = CallStatus.RINGING
-  setTimeout(() => {
-    callStatus.value = CallStatus.ACTIVE
-    callDuration.value = 0
-  }, 800)
 }
 
 function endCall() {
@@ -106,12 +90,12 @@ watch(callStatus, (newStatus) => {
 watch(
   () => queueStore.activeCall,
   (newActiveCall) => {
-    if (newActiveCall && callStatus.value === CallStatus.IDLE) {
-      callStatus.value = CallStatus.RINGING
-      setTimeout(() => {
-        callStatus.value = CallStatus.ACTIVE
-        callDuration.value = 0
-      }, 800)
+    if (newActiveCall) {
+      callStatus.value = CallStatus.ACTIVE
+      callDuration.value = 0
+    } else {
+      callStatus.value = CallStatus.IDLE
+      clearDurationInterval()
     }
   },
 )
@@ -131,7 +115,6 @@ onUnmounted(() => {
     <p v-else>No active call</p>
     <p>Call Status: {{ callStatus }}</p>
     <p>Call Duration: {{ formattedDuration }}</p>
-    <button v-on:click="startCall" :disabled="!canStartCallAction">Start Call</button>
     <button v-on:click="endCall" :disabled="!canEndCallAction">End Call</button>
     <button v-on:click="transferCall" :disabled="!canTransferCallAction">Transfer Call</button>
     <button v-on:click="handleHoldOrResumeCall" :disabled="!canHoldOrResumeCallAction">
