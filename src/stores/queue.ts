@@ -70,9 +70,9 @@ export const useQueueStore = defineStore('queue', () => {
 
     return [...filtered].sort((a, b) => {
       const statusOrder = {
-        [QueueStatus.WAITING]: 0,
+        [QueueStatus.ASSIGNED]: 0,
         [QueueStatus.ASSIGNING]: 1,
-        [QueueStatus.ASSIGNED]: 2,
+        [QueueStatus.WAITING]: 2,
       }
       const statusDiff = statusOrder[a.status] - statusOrder[b.status]
       if (statusDiff !== 0) return statusDiff
