@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { CallStatus } from '@/enums/callStatus'
-
-defineProps<{
-  customerName: string
-}>()
+import { useQueueStore } from '@/stores/queue'
 
 type CallStatusValue = (typeof CallStatus)[keyof typeof CallStatus]
+
+const queueStore = useQueueStore()
 
 const callStatus = ref<CallStatusValue>(CallStatus.IDLE)
 const callDuration = ref(0)
@@ -21,7 +20,9 @@ const formattedDuration = computed(() => {
 })
 const isActive = computed(() => callStatus.value === CallStatus.ACTIVE)
 const isOnHold = computed(() => callStatus.value === CallStatus.ON_HOLD)
-const canStartCallAction = computed(() => canStartCall.includes(callStatus.value))
+const canStartCallAction = computed(
+  () => canStartCall.includes(callStatus.value) && queueStore.hasActiveCall,
+)
 const canEndCallAction = computed(() => isActive.value || isOnHold.value)
 const canTransferCallAction = computed(() => isActive.value || isOnHold.value)
 const canHoldOrResumeCallAction = computed(() => isActive.value || isOnHold.value)
@@ -32,6 +33,9 @@ const holdOrResumeLabel = computed(() => {
   return isOnHold.value ? 'Resume Call' : 'Hold Call'
 })
 
+const activeCustomerName = computed(() => queueStore.activeCall?.callerName ?? 'No active call')
+const activePhoneNumber = computed(() => queueStore.activeCall?.phoneNumber ?? '')
+
 function clearDurationInterval() {
   if (durationInterval) {
     clearInterval(durationInterval)
@@ -40,12 +44,11 @@ function clearDurationInterval() {
 }
 
 function startCall() {
-  if (!canStartCall.includes(callStatus.value)) {
+  if (!canStartCall.includes(callStatus.value) || !queueStore.activeCall) {
     return
   }
 
   callStatus.value = CallStatus.RINGING
-  // only to simulate behavioural of a call center
   setTimeout(() => {
     callStatus.value = CallStatus.ACTIVE
     callDuration.value = 0
@@ -57,6 +60,7 @@ function endCall() {
     return
   }
   callStatus.value = CallStatus.ENDED
+  queueStore.endCall()
 }
 
 function transferCall() {
@@ -64,9 +68,9 @@ function transferCall() {
     return
   }
   callStatus.value = CallStatus.TRANSFERRING
-  // This is for mock the transfer process
   setTimeout(() => {
     callStatus.value = CallStatus.TRANSFERRED
+    queueStore.endCall()
   }, 800)
 }
 
@@ -99,6 +103,19 @@ watch(callStatus, (newStatus) => {
   }
 })
 
+watch(
+  () => queueStore.activeCall,
+  (newActiveCall) => {
+    if (newActiveCall && callStatus.value === CallStatus.IDLE) {
+      callStatus.value = CallStatus.RINGING
+      setTimeout(() => {
+        callStatus.value = CallStatus.ACTIVE
+        callDuration.value = 0
+      }, 800)
+    }
+  },
+)
+
 onUnmounted(() => {
   clearDurationInterval()
 })
@@ -107,7 +124,11 @@ onUnmounted(() => {
 <template>
   <div>
     <h2>Current Active Call</h2>
-    <p>Customer Name: {{ customerName }}</p>
+    <p v-if="queueStore.hasActiveCall">
+      Customer Name: {{ activeCustomerName }}<br />
+      Phone: {{ activePhoneNumber }}
+    </p>
+    <p v-else>No active call</p>
     <p>Call Status: {{ callStatus }}</p>
     <p>Call Duration: {{ formattedDuration }}</p>
     <button v-on:click="startCall" :disabled="!canStartCallAction">Start Call</button>

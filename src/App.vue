@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import ActiveCallDashboard from '@/components/ActiveCallDashboard.vue' // Maybe we can dinamically import this component based on the call status
+import ActiveCallDashboard from '@/components/ActiveCallDashboard.vue'
 import LiveQueueMonitor from '@/components/LiveQueueMonitor.vue'
 </script>
 
 <template>
   <h1>Call Center Tools</h1>
-  <ActiveCallDashboard customerName="Jhon Doe" />
+  <ActiveCallDashboard />
   <LiveQueueMonitor />
 </template>
 
