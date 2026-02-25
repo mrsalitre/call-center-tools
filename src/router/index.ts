@@ -14,6 +14,10 @@ const router = createRouter({
       name: 'attended',
       component: () => import('@/views/AttendedCallsView.vue'),
     },
+    {
+      path: '/:pathMatch(.*)*',
+      redirect: '/',
+    },
   ],
 })
 

@@ -15,6 +15,7 @@ export interface QueueEntry {
   callerName: string
   phoneNumber: string
   waitingSince: Date
+  basePriority: QueuePriorityValue
   priority: QueuePriorityValue
   status: QueueStatusValue
   assignedAgent?: string
@@ -27,6 +28,7 @@ export const useQueueStore = defineStore('queue', () => {
       callerName: 'Jhon Doe',
       phoneNumber: '1234567890',
       waitingSince: new Date(Date.now() - 10000),
+      basePriority: QueuePriority.NORMAL,
       priority: QueuePriority.NORMAL,
       status: QueueStatus.WAITING,
     },
@@ -35,6 +37,7 @@ export const useQueueStore = defineStore('queue', () => {
       callerName: 'Jane Doe',
       phoneNumber: '0987654321',
       waitingSince: new Date(Date.now() - 20000),
+      basePriority: QueuePriority.HIGH,
       priority: QueuePriority.HIGH,
       status: QueueStatus.WAITING,
     },
@@ -82,6 +85,9 @@ export const useQueueStore = defineStore('queue', () => {
   })
 
   const hasActiveCall = computed(() => activeCall.value !== null)
+  const isAcceptingCall = computed(
+    () => activeCall.value !== null || callStatus.value === CallStatus.TRANSFERRING,
+  )
   const isActive = computed(() => callStatus.value === CallStatus.ACTIVE)
   const isOnHold = computed(() => callStatus.value === CallStatus.ON_HOLD)
   const canEndCallAction = computed(() => isActive.value || isOnHold.value)
@@ -100,6 +106,13 @@ export const useQueueStore = defineStore('queue', () => {
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
   })
 
+  const priorityOrder: Record<QueuePriorityValue, number> = {
+    [QueuePriority.VIP]: 0,
+    [QueuePriority.HIGH]: 1,
+    [QueuePriority.NORMAL]: 2,
+    [QueuePriority.LOW]: 3,
+  }
+
   function calculatePriority(waitingSeconds: number): QueuePriorityValue {
     if (waitingSeconds >= 300) return QueuePriority.VIP
     if (waitingSeconds >= 180) return QueuePriority.HIGH
@@ -107,11 +120,22 @@ export const useQueueStore = defineStore('queue', () => {
     return QueuePriority.LOW
   }
 
+  function getEffectivePriority(
+    basePriority: QueuePriorityValue,
+    waitingSeconds: number,
+  ): QueuePriorityValue {
+    const timeBasedPriority = calculatePriority(waitingSeconds)
+    return priorityOrder[timeBasedPriority] < priorityOrder[basePriority]
+      ? timeBasedPriority
+      : basePriority
+  }
+
   function updatePriorities() {
     const now = Date.now()
     queue.value.forEach((entry) => {
+      if (entry.status !== QueueStatus.WAITING) return
       const waitingSeconds = Math.floor((now - entry.waitingSince.getTime()) / 1000)
-      entry.priority = calculatePriority(waitingSeconds)
+      entry.priority = getEffectivePriority(entry.basePriority, waitingSeconds)
     })
   }
 
@@ -131,13 +155,14 @@ export const useQueueStore = defineStore('queue', () => {
 
   function acceptCall(entry: QueueEntry) {
     if (entry.status !== QueueStatus.WAITING) return
+    if (hasActiveCall.value || isAcceptingCall.value) return
 
     entry.status = QueueStatus.ASSIGNING
+    activeCall.value = { ...entry }
 
     setTimeout(() => {
       entry.status = QueueStatus.ASSIGNED
       entry.assignedAgent = 'Agent 1'
-      activeCall.value = { ...entry }
       callStatus.value = CallStatus.ACTIVE
       callDuration.value = 0
       startDurationTimer()
@@ -214,9 +239,10 @@ export const useQueueStore = defineStore('queue', () => {
     callDuration.value = 0
   }
 
-  function addToQueue(entry: Omit<QueueEntry, 'priority' | 'status'>) {
+  function addToQueue(entry: Omit<QueueEntry, 'basePriority' | 'priority' | 'status'>) {
     const newEntry: QueueEntry = {
       ...entry,
+      basePriority: QueuePriority.LOW,
       priority: QueuePriority.LOW,
       status: QueueStatus.WAITING,
     }
@@ -233,6 +259,7 @@ export const useQueueStore = defineStore('queue', () => {
     waitingCount,
     sortedQueue,
     hasActiveCall,
+    isAcceptingCall,
     isActive,
     isOnHold,
     canEndCallAction,
