@@ -69,10 +69,6 @@ export const useQueueStore = defineStore('queue', () => {
 
   const queueSize = computed(() => queue.value.length)
 
-  const waitingCount = computed(
-    () => queue.value.filter((e) => e.status === QueueStatus.WAITING).length,
-  )
-
   const priorityOrder = {
     [QueuePriority.VIP]: 0,
     [QueuePriority.HIGH]: 1,
@@ -233,7 +229,7 @@ export const useQueueStore = defineStore('queue', () => {
     if (hasActiveCall.value || isAcceptingCall.value) return
 
     entry.status = QueueStatus.ASSIGNING
-    activeCall.value = { ...entry }
+    activeCall.value = entry
 
     setTimeout(() => {
       entry.status = QueueStatus.ASSIGNED
@@ -367,7 +363,6 @@ export const useQueueStore = defineStore('queue', () => {
     callStatus,
     callDuration,
     queueSize,
-    waitingCount,
     waitingQueue,
     activeCallsQueue,
     sortedQueue,

@@ -24,7 +24,7 @@ function isPriorityActive(
 <template>
   <div>
     <h2>Live Queue Monitor</h2>
-    <p>Queue size: {{ queueStore.queueSize }} | Waiting: {{ queueStore.waitingCount }}</p>
+    <p>Queue size: {{ queueStore.queueSize }} | Waiting: {{ queueStore.waitingQueue.length }}</p>
 
     <div>
       <span>Filter by priority: </span>
@@ -57,7 +57,7 @@ function isPriorityActive(
       </button>
     </div>
 
-    <h3>Waiting ({{ queueStore.waitingCount }})</h3>
+    <h3>Waiting ({{ queueStore.waitingQueue.length }})</h3>
     <ul v-if="queueStore.waitingQueue.length > 0">
       <li
         v-for="entry in queueStore.waitingQueue"
