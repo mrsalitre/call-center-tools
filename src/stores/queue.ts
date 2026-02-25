@@ -231,7 +231,11 @@ export const useQueueStore = defineStore('queue', () => {
     entry.status = QueueStatus.ASSIGNING
     activeCall.value = entry
 
+    const acceptedId = entry.id
     setTimeout(() => {
+      // Bail out if endCall/transfer was called during the delay
+      // We need this only because we are simulating a delay
+      if (activeCall.value?.id !== acceptedId) return
       entry.status = QueueStatus.ASSIGNED
       entry.assignedAgent = 'Agent 1'
       callStatus.value = CallStatus.ACTIVE
