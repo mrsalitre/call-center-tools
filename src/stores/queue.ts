@@ -53,6 +53,7 @@ export const useQueueStore = defineStore('queue', () => {
 
   nowInterval.value = setInterval(() => {
     now.value = Date.now()
+    updatePriorities()
   }, 1000)
 
   onScopeDispose(() => {
