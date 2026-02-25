@@ -336,10 +336,7 @@ export const useQueueStore = defineStore('queue', () => {
       agentName: activeCall.value.assignedAgent ?? 'Unknown',
     })
 
-    const entry = queue.value.find((e) => e.id === activeCall.value?.id)
-    if (entry) {
-      queue.value = queue.value.filter((e) => e.id !== activeCall.value?.id)
-    }
+    queue.value = queue.value.filter((e) => e.id !== activeCall.value?.id)
     activeCall.value = null
     callStatus.value = CallStatus.IDLE
     callDuration.value = 0
