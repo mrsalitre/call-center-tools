@@ -6,11 +6,13 @@ defineProps<{
   customerName: string
 }>()
 
-const callStatus = ref(CallStatus.IDLE)
+type CallStatusValue = (typeof CallStatus)[keyof typeof CallStatus]
+
+const callStatus = ref<CallStatusValue>(CallStatus.IDLE)
 const callDuration = ref(0)
 
 let durationInterval: ReturnType<typeof setInterval> | null = null
-const canStartCall = [CallStatus.IDLE, CallStatus.ENDED, CallStatus.TRANSFERRED]
+const canStartCall: CallStatusValue[] = [CallStatus.IDLE, CallStatus.ENDED, CallStatus.TRANSFERRED]
 
 const formattedDuration = computed(() => {
   const minutes = Math.floor(callDuration.value / 60)
