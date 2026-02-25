@@ -83,25 +83,33 @@ onUnmounted(() => {
       </button>
     </div>
 
-    <ul v-if="queueStore.sortedQueue.length > 0">
-      <li v-for="entry in queueStore.sortedQueue" :key="entry.id">
+    <h3>Waiting ({{ queueStore.waitingCount }})</h3>
+    <ul v-if="queueStore.waitingQueue.length > 0">
+      <li v-for="entry in queueStore.waitingQueue" :key="entry.id">
         <strong>{{ entry.callerName }}</strong> ({{ entry.phoneNumber }})
         <br />
         Waiting: {{ queueStore.formatWaitingTime(getLiveTimer(entry.id)) }} | Priority:
-        {{ entry.priority.toUpperCase() }} | Status: {{ entry.status }}
-        <button
-          v-if="entry.status === QueueStatus.WAITING && !queueStore.hasActiveCall"
-          @click="handleAcceptCall(entry)"
-        >
+        {{ entry.priority.toUpperCase() }}
+        <button v-if="!queueStore.hasActiveCall" @click="handleAcceptCall(entry)">
           Accept Call
         </button>
+      </li>
+    </ul>
+    <p v-else>No calls waiting</p>
+
+    <h3>Active Calls ({{ queueStore.activeCallsQueue.length }})</h3>
+    <ul v-if="queueStore.activeCallsQueue.length > 0">
+      <li v-for="entry in queueStore.activeCallsQueue" :key="entry.id">
+        <strong>{{ entry.callerName }}</strong> ({{ entry.phoneNumber }})
+        <br />
+        Priority: {{ entry.priority.toUpperCase() }} | Status:
         <span v-if="entry.status === QueueStatus.ASSIGNING">Connecting...</span>
         <span v-if="entry.status === QueueStatus.ASSIGNED"
           >Assigned to {{ entry.assignedAgent }}</span
         >
       </li>
     </ul>
-    <p v-else>No calls in the queue</p>
+    <p v-else>No active calls</p>
   </div>
 </template>
 

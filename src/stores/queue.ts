@@ -25,7 +25,7 @@ export const useQueueStore = defineStore('queue', () => {
   const queue = ref<QueueEntry[]>([
     {
       id: '1',
-      callerName: 'Jhon Doe',
+      callerName: 'John Doe',
       phoneNumber: '1234567890',
       waitingSince: new Date(Date.now() - 10000),
       basePriority: QueuePriority.NORMAL,
@@ -55,33 +55,43 @@ export const useQueueStore = defineStore('queue', () => {
     () => queue.value.filter((e) => e.status === QueueStatus.WAITING).length,
   )
 
-  const sortedQueue = computed(() => {
-    const priorityOrder = {
-      [QueuePriority.VIP]: 0,
-      [QueuePriority.HIGH]: 1,
-      [QueuePriority.NORMAL]: 2,
-      [QueuePriority.LOW]: 3,
-    }
+  const priorityOrder = {
+    [QueuePriority.VIP]: 0,
+    [QueuePriority.HIGH]: 1,
+    [QueuePriority.NORMAL]: 2,
+    [QueuePriority.LOW]: 3,
+  }
 
-    const filtered =
-      selectedPriorityFilter.value === 'all'
-        ? queue.value
-        : queue.value.filter((e) => e.priority === selectedPriorityFilter.value)
-
-    return [...filtered].sort((a, b) => {
-      const statusOrder = {
-        [QueueStatus.ASSIGNED]: 0,
-        [QueueStatus.ASSIGNING]: 1,
-        [QueueStatus.WAITING]: 2,
-      }
-      const statusDiff = statusOrder[a.status] - statusOrder[b.status]
-      if (statusDiff !== 0) return statusDiff
-
+  function sortEntries(entries: QueueEntry[]): QueueEntry[] {
+    return [...entries].sort((a, b) => {
       const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority]
       if (priorityDiff !== 0) return priorityDiff
-
       return a.waitingSince.getTime() - b.waitingSince.getTime()
     })
+  }
+
+  const waitingQueue = computed(() => {
+    const filtered = queue.value.filter((e) => e.status === QueueStatus.WAITING)
+    const byPriority =
+      selectedPriorityFilter.value === 'all'
+        ? filtered
+        : filtered.filter((e) => e.priority === selectedPriorityFilter.value)
+    return sortEntries(byPriority)
+  })
+
+  const activeCallsQueue = computed(() => {
+    const filtered = queue.value.filter(
+      (e) => e.status === QueueStatus.ASSIGNED || e.status === QueueStatus.ASSIGNING,
+    )
+    const byPriority =
+      selectedPriorityFilter.value === 'all'
+        ? filtered
+        : filtered.filter((e) => e.priority === selectedPriorityFilter.value)
+    return sortEntries(byPriority)
+  })
+
+  const sortedQueue = computed(() => {
+    return [...waitingQueue.value, ...activeCallsQueue.value]
   })
 
   const hasActiveCall = computed(() => activeCall.value !== null)
@@ -105,13 +115,6 @@ export const useQueueStore = defineStore('queue', () => {
     const seconds = callDuration.value % 60
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
   })
-
-  const priorityOrder: Record<QueuePriorityValue, number> = {
-    [QueuePriority.VIP]: 0,
-    [QueuePriority.HIGH]: 1,
-    [QueuePriority.NORMAL]: 2,
-    [QueuePriority.LOW]: 3,
-  }
 
   function calculatePriority(waitingSeconds: number): QueuePriorityValue {
     if (waitingSeconds >= 300) return QueuePriority.VIP
@@ -257,6 +260,8 @@ export const useQueueStore = defineStore('queue', () => {
     callDuration,
     queueSize,
     waitingCount,
+    waitingQueue,
+    activeCallsQueue,
     sortedQueue,
     hasActiveCall,
     isAcceptingCall,
