@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, onScopeDispose } from 'vue'
 import { defineStore } from 'pinia'
 import { QueueStatus } from '@/enums/queueStatus'
 import { QueuePriority } from '@/enums/queuePriority'
@@ -47,7 +47,24 @@ export const useQueueStore = defineStore('queue', () => {
   const selectedPriorityFilter = ref<QueuePriorityValue | 'all'>('all')
   const callStatus = ref<CallStatusValue>(CallStatus.IDLE)
   const callDuration = ref(0)
-  let durationInterval: ReturnType<typeof setInterval> | null = null
+  const durationInterval = ref<ReturnType<typeof setInterval> | null>(null)
+  const now = ref(Date.now())
+  const nowInterval = ref<ReturnType<typeof setInterval> | null>(null)
+
+  nowInterval.value = setInterval(() => {
+    now.value = Date.now()
+  }, 1000)
+
+  onScopeDispose(() => {
+    if (durationInterval.value) {
+      clearInterval(durationInterval.value)
+      durationInterval.value = null
+    }
+    if (nowInterval.value) {
+      clearInterval(nowInterval.value)
+      nowInterval.value = null
+    }
+  })
 
   const queueSize = computed(() => queue.value.length)
 
@@ -70,24 +87,38 @@ export const useQueueStore = defineStore('queue', () => {
     })
   }
 
+  const partitionedByStatus = computed(() => {
+    const waiting: QueueEntry[] = []
+    const active: QueueEntry[] = []
+
+    for (const entry of queue.value) {
+      if (entry.status === QueueStatus.WAITING) {
+        waiting.push(entry)
+      } else if (entry.status === QueueStatus.ASSIGNED || entry.status === QueueStatus.ASSIGNING) {
+        active.push(entry)
+      }
+    }
+    return { waiting, active }
+  })
+
   const waitingQueue = computed(() => {
-    const filtered = queue.value.filter((e) => e.status === QueueStatus.WAITING)
-    const byPriority =
+    const filtered =
       selectedPriorityFilter.value === 'all'
-        ? filtered
-        : filtered.filter((e) => e.priority === selectedPriorityFilter.value)
-    return sortEntries(byPriority)
+        ? partitionedByStatus.value.waiting
+        : partitionedByStatus.value.waiting.filter(
+            (e) => e.priority === selectedPriorityFilter.value,
+          )
+    return sortEntries(filtered)
   })
 
   const activeCallsQueue = computed(() => {
-    const filtered = queue.value.filter(
-      (e) => e.status === QueueStatus.ASSIGNED || e.status === QueueStatus.ASSIGNING,
-    )
-    const byPriority =
+    const filtered =
       selectedPriorityFilter.value === 'all'
-        ? filtered
-        : filtered.filter((e) => e.priority === selectedPriorityFilter.value)
-    return sortEntries(byPriority)
+        ? partitionedByStatus.value.active
+        : partitionedByStatus.value.active.filter(
+            (e) => e.priority === selectedPriorityFilter.value,
+          )
+    return sortEntries(filtered)
   })
 
   const sortedQueue = computed(() => {
@@ -134,16 +165,15 @@ export const useQueueStore = defineStore('queue', () => {
   }
 
   function updatePriorities() {
-    const now = Date.now()
     queue.value.forEach((entry) => {
       if (entry.status !== QueueStatus.WAITING) return
-      const waitingSeconds = Math.floor((now - entry.waitingSince.getTime()) / 1000)
+      const waitingSeconds = Math.floor((now.value - entry.waitingSince.getTime()) / 1000)
       entry.priority = getEffectivePriority(entry.basePriority, waitingSeconds)
     })
   }
 
   function getWaitingTime(entry: QueueEntry): number {
-    return Math.floor((Date.now() - entry.waitingSince.getTime()) / 1000)
+    return Math.floor((now.value - entry.waitingSince.getTime()) / 1000)
   }
 
   function formatWaitingTime(seconds: number): string {
@@ -173,16 +203,16 @@ export const useQueueStore = defineStore('queue', () => {
   }
 
   function startDurationTimer() {
-    if (durationInterval) clearInterval(durationInterval)
-    durationInterval = setInterval(() => {
+    if (durationInterval.value) clearInterval(durationInterval.value)
+    durationInterval.value = setInterval(() => {
       callDuration.value++
     }, 1000)
   }
 
   function stopDurationTimer() {
-    if (durationInterval) {
-      clearInterval(durationInterval)
-      durationInterval = null
+    if (durationInterval.value) {
+      clearInterval(durationInterval.value)
+      durationInterval.value = null
     }
   }
 

@@ -85,7 +85,11 @@ onUnmounted(() => {
 
     <h3>Waiting ({{ queueStore.waitingCount }})</h3>
     <ul v-if="queueStore.waitingQueue.length > 0">
-      <li v-for="entry in queueStore.waitingQueue" :key="entry.id">
+      <li
+        v-for="entry in queueStore.waitingQueue"
+        :key="entry.id"
+        v-memo="[entry.status, entry.priority, getLiveTimer(entry.id)]"
+      >
         <strong>{{ entry.callerName }}</strong> ({{ entry.phoneNumber }})
         <br />
         Waiting: {{ queueStore.formatWaitingTime(getLiveTimer(entry.id)) }} | Priority:
@@ -99,7 +103,11 @@ onUnmounted(() => {
 
     <h3>Active Calls ({{ queueStore.activeCallsQueue.length }})</h3>
     <ul v-if="queueStore.activeCallsQueue.length > 0">
-      <li v-for="entry in queueStore.activeCallsQueue" :key="entry.id">
+      <li
+        v-for="entry in queueStore.activeCallsQueue"
+        :key="entry.id"
+        v-memo="[entry.status, entry.priority, entry.assignedAgent]"
+      >
         <strong>{{ entry.callerName }}</strong> ({{ entry.phoneNumber }})
         <br />
         Priority: {{ entry.priority.toUpperCase() }} | Status:

@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { shallowRef, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { QueuePriority } from '@/enums/queuePriority'
 
@@ -15,7 +15,7 @@ export interface AttendedCall {
 }
 
 export const useAttendedCallsStore = defineStore('attendedCalls', () => {
-  const attendedCalls = ref<AttendedCall[]>([])
+  const attendedCalls = shallowRef<AttendedCall[]>([])
 
   const totalAttended = computed(() => attendedCalls.value.length)
 
@@ -24,11 +24,7 @@ export const useAttendedCallsStore = defineStore('attendedCalls', () => {
   })
 
   function addAttendedCall(call: Omit<AttendedCall, 'attendedAt'>) {
-    const newCall: AttendedCall = {
-      ...call,
-      attendedAt: new Date(),
-    }
-    attendedCalls.value.push(newCall)
+    attendedCalls.value = [...attendedCalls.value, { ...call, attendedAt: new Date() }]
   }
 
   function formatDuration(seconds: number): string {
