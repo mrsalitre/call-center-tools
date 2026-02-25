@@ -1,24 +1,9 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
 import { useQueueStore, type QueueEntry } from '@/stores/queue'
 import { QueueStatus } from '@/enums/queueStatus'
 import { QueuePriority } from '@/enums/queuePriority'
 
 const queueStore = useQueueStore()
-
-const liveTimers = ref<Map<string, number>>(new Map())
-let updateInterval: ReturnType<typeof setInterval> | null = null
-
-function updateLiveTimers() {
-  queueStore.updatePriorities()
-  queueStore.sortedQueue.forEach((entry) => {
-    liveTimers.value.set(entry.id, queueStore.getWaitingTime(entry))
-  })
-}
-
-function getLiveTimer(id: string): number {
-  return liveTimers.value.get(id) ?? 0
-}
 
 function handleAcceptCall(entry: QueueEntry) {
   if (queueStore.hasActiveCall) return
@@ -34,23 +19,12 @@ function isPriorityActive(
 ): boolean {
   return queueStore.selectedPriorityFilter === priority
 }
-
-onMounted(() => {
-  updateLiveTimers()
-  updateInterval = setInterval(updateLiveTimers, 1000)
-})
-
-onUnmounted(() => {
-  if (updateInterval) {
-    clearInterval(updateInterval)
-  }
-})
 </script>
 
 <template>
   <div>
     <h2>Live Queue Monitor</h2>
-    <p>Queue size: {{ queueStore.queueSize }} | Waiting: {{ queueStore.waitingCount }}</p>
+    <p>Queue size: {{ queueStore.queueSize }} | Waiting: {{ queueStore.waitingQueue.length }}</p>
 
     <div>
       <span>Filter by priority: </span>
@@ -83,25 +57,41 @@ onUnmounted(() => {
       </button>
     </div>
 
-    <ul v-if="queueStore.sortedQueue.length > 0">
-      <li v-for="entry in queueStore.sortedQueue" :key="entry.id">
+    <h3>Waiting ({{ queueStore.waitingQueue.length }})</h3>
+    <ul v-if="queueStore.waitingQueue.length > 0">
+      <li
+        v-for="entry in queueStore.waitingQueue"
+        :key="entry.id"
+        v-memo="[entry.status, entry.priority, queueStore.getWaitingTime(entry)]"
+      >
         <strong>{{ entry.callerName }}</strong> ({{ entry.phoneNumber }})
         <br />
-        Waiting: {{ queueStore.formatWaitingTime(getLiveTimer(entry.id)) }} | Priority:
-        {{ entry.priority.toUpperCase() }} | Status: {{ entry.status }}
-        <button
-          v-if="entry.status === QueueStatus.WAITING && !queueStore.hasActiveCall"
-          @click="handleAcceptCall(entry)"
-        >
+        Waiting: {{ queueStore.formatWaitingTime(queueStore.getWaitingTime(entry)) }} | Priority:
+        {{ entry.priority.toUpperCase() }}
+        <button v-if="!queueStore.hasActiveCall" @click="handleAcceptCall(entry)">
           Accept Call
         </button>
+      </li>
+    </ul>
+    <p v-else>No calls waiting</p>
+
+    <h3>Active Calls ({{ queueStore.activeCallsQueue.length }})</h3>
+    <ul v-if="queueStore.activeCallsQueue.length > 0">
+      <li
+        v-for="entry in queueStore.activeCallsQueue"
+        :key="entry.id"
+        v-memo="[entry.status, entry.priority, entry.assignedAgent]"
+      >
+        <strong>{{ entry.callerName }}</strong> ({{ entry.phoneNumber }})
+        <br />
+        Priority: {{ entry.priority.toUpperCase() }} | Status:
         <span v-if="entry.status === QueueStatus.ASSIGNING">Connecting...</span>
         <span v-if="entry.status === QueueStatus.ASSIGNED"
           >Assigned to {{ entry.assignedAgent }}</span
         >
       </li>
     </ul>
-    <p v-else>No calls in the queue</p>
+    <p v-else>No active calls</p>
   </div>
 </template>
 

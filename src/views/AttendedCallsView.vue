@@ -25,7 +25,18 @@ const attendedCallsStore = useAttendedCallsStore()
         </tr>
       </thead>
       <tbody>
-        <tr v-for="call in attendedCallsStore.sortedByDate" :key="call.id">
+        <tr
+          v-for="call in attendedCallsStore.sortedByDate"
+          :key="call.id"
+          v-memo="[
+            call.callerName,
+            call.phoneNumber,
+            call.agentName,
+            call.priority,
+            call.duration,
+            call.attendedAt,
+          ]"
+        >
           <td>{{ call.callerName }}</td>
           <td>{{ call.phoneNumber }}</td>
           <td>{{ call.agentName }}</td>
