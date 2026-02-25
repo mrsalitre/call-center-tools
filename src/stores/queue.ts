@@ -306,11 +306,13 @@ export const useQueueStore = defineStore('queue', () => {
    */
   function transferCall() {
     if (callStatus.value !== CallStatus.ACTIVE && callStatus.value !== CallStatus.ON_HOLD) return
+    const transferringId = activeCall.value?.id
 
     callStatus.value = CallStatus.TRANSFERRING
     stopDurationTimer()
 
     setTimeout(() => {
+      if (!activeCall.value || activeCall.value.id !== transferringId) return
       callStatus.value = CallStatus.TRANSFERRED
       endCall()
     }, 800)
@@ -348,6 +350,10 @@ export const useQueueStore = defineStore('queue', () => {
    * @param entry - Queue entry data without basePriority, priority, and status fields
    */
   function addToQueue(entry: Omit<QueueEntry, 'basePriority' | 'priority' | 'status'>) {
+    if (queue.value.some((e) => e.id === entry.id)) {
+      throw new Error(`Queue entry with id "${entry.id}" already exists`)
+    }
+
     const newEntry: QueueEntry = {
       ...entry,
       basePriority: QueuePriority.LOW,
